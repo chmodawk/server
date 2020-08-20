@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1335  USA
 #include "datasink.h"
 #include "xbstream.h"
 #include "changed_page_bitmap.h"
+#include <set>
 
 struct xb_delta_info_t
 {
@@ -33,6 +34,27 @@ struct xb_delta_info_t
 
 	page_size_t	page_size;
 	ulint		space_id;
+};
+
+class CorruptedPages
+{
+public:
+  CorruptedPages();
+  ~CorruptedPages();
+  void add_page(const char *table_name, ulint page_no);
+  bool contains(const char *table_name, ulint page_no);
+  void process_ddl(const std::set<std::string> &new_tables,
+                   const std::set<std::string> &dropped_tables,
+                   const std::map<std::string, std::string> &renamed_tables);
+  bool print_to_file(const char *file_name);
+  void read_from_file(const char *file_name);
+  bool empty();
+  void zero_out_free_pages();
+
+private:
+  typedef std::map<std::string, std::set<ulint> > container;
+  pthread_mutex_t m_mutex;
+  container m_pages;
 };
 
 /* value of the --incremental option */
@@ -110,6 +132,7 @@ extern my_bool		opt_remove_original;
 extern my_bool		opt_extended_validation;
 extern my_bool		opt_encrypted_backup;
 extern my_bool		opt_lock_ddl_per_table;
+extern my_bool    opt_log_innodb_page_corruption;
 
 extern char		*opt_incremental_history_name;
 extern char		*opt_incremental_history_uuid;
